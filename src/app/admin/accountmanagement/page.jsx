@@ -32,6 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isAuthenticated } from "@/app/utils/auth";
+import { useRouter } from "next/navigation";
 
 export default function AccountManagement() {
   const [showAddOwner, setShowAddOwner] = useState(false);
@@ -47,6 +49,31 @@ export default function AccountManagement() {
     venueAssigned: "",
   });
   const [venues, setVenues] = useState([]);
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log("Checking authentication...");
+      const roleMap = {
+        admin: true,
+      };
+      for (const role of Object.keys(roleMap)) {
+        const authorized = await isAuthenticated(role);
+        if (authorized) {
+          console.log("User is authorized:", role);
+          setIsAuthorized(true);
+          return;
+        }
+      }
+      router.push("/auth/login");
+    };
+
+    if (auth.currentUser) {
+      checkAuth();
+    }
+  }, [auth.currentUser]);
 
   useEffect(() => {
     fetchOwners();

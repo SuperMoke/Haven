@@ -12,16 +12,43 @@ import {
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../../../firebase";
+import { db, auth } from "../../../firebase";
 import { Button } from "@/components/ui/button";
 import Navbar from "./navbar";
 import Sidebar from "./sidebar";
+import { isAuthenticated } from "../utils/auth";
+import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
   const [venues, setVenues] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeBookings, setActiveBookings] = useState([]);
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log("Checking authentication...");
+      const roleMap = {
+        admin: true,
+      };
+      for (const role of Object.keys(roleMap)) {
+        const authorized = await isAuthenticated(role);
+        if (authorized) {
+          console.log("User is authorized:", role);
+          setIsAuthorized(true);
+          return;
+        }
+      }
+      router.push("/auth/login");
+    };
+
+    if (auth.currentUser) {
+      checkAuth();
+    }
+  }, [auth.currentUser]);
 
   useEffect(() => {
     const fetchActiveBookings = async () => {

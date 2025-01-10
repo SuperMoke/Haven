@@ -15,7 +15,8 @@ import { AnimatedSection } from "@/app/components/AnimatedSection";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { Eye, EyeOff } from "lucide-react"; // Add this import
+import { Eye, EyeOff } from "lucide-react";
+import { isAuthenticated } from "@/app/utils/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -41,16 +42,19 @@ export default function LoginPage() {
       const q = query(usersRef, where("uid", "==", userCredential.user.uid));
       const querySnapshot = await getDocs(q);
 
-      if (!querySnapshot.empty) {
-        const userData = querySnapshot.docs[0].data();
-        if (userData.role === "owner") {
-          router.push("/owner");
-        } else if (userData.role === "client") {
-          router.push("/user");
+      const roleMap = {
+        user: "/user",
+        owner: "owner",
+        admin: "/admin",
+      };
+      for (const role of Object.keys(roleMap)) {
+        const hasRole = await isAuthenticated(role);
+        if (hasRole) {
+          router.push(roleMap[role]);
+          return;
         }
-      } else {
-        setError("User data not found");
       }
+      setError("It seems your account have a problem");
     } catch (error) {
       setError(
         error.code === "auth/invalid-credential"

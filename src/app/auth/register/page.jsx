@@ -96,7 +96,7 @@ export default function RegisterPage() {
         phone: formData.phone,
         createdAt: new Date().toISOString(),
         uid: userCredential.user.uid,
-        role: "client",
+        role: "user",
       });
       router.push("/auth/login");
     } catch (error) {

@@ -34,6 +34,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Calendar, CalendarPlus, CalendarRange } from "lucide-react";
 import { CreditCard, Wallet, Building2 } from "lucide-react";
+import { isAuthenticated } from "../utils/auth";
+import { useRouter } from "next/navigation";
 
 const CALENDARIFIC_API_KEY = "XtujOgEK9g4xmJurzr2RXPPxUq9muk0j";
 const STORAGE_KEY = "holidays_cache";
@@ -41,7 +43,7 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 export default function UserHomepage() {
   const [userProfile, setUserProfile] = useState(null);
-  const [user, setUser] = useState(null);
+
   const [selected, setSelected] = useState(null);
   const [bookedDates, setBookedDates] = useState([]);
   const [holidays, setHolidays] = useState([]);
@@ -62,6 +64,31 @@ export default function UserHomepage() {
   const [activeBookings, setActiveBookings] = useState([]);
   const [venueBookings, setVenueBookings] = useState({});
   const [showPaymentDialog, setShowPaymentDialog] = useState(null);
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log("Checking authentication...");
+      const roleMap = {
+        user: true,
+      };
+      for (const role of Object.keys(roleMap)) {
+        const authorized = await isAuthenticated(role);
+        if (authorized) {
+          console.log("User is authorized:", role);
+          setIsAuthorized(true);
+          return;
+        }
+      }
+      router.push("/auth/login");
+    };
+
+    if (auth.currentUser) {
+      checkAuth();
+    }
+  }, [auth.currentUser]);
 
   const PaymentDialog = ({ booking, venues, onClose, onPaymentComplete }) => {
     const [cardDetails, setCardDetails] = useState({

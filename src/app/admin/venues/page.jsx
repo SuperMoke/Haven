@@ -28,6 +28,8 @@ import {
 import Navbar from "../navbar";
 import Sidebar from "../sidebar";
 import { Textarea } from "@/components/ui/textarea";
+import { isAuthenticated } from "@/app/utils/auth";
+import { useRouter } from "next/navigation";
 
 export default function VenuesPage() {
   const [newVenue, setNewVenue] = useState({
@@ -44,6 +46,31 @@ export default function VenuesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log("Checking authentication...");
+      const roleMap = {
+        admin: true,
+      };
+      for (const role of Object.keys(roleMap)) {
+        const authorized = await isAuthenticated(role);
+        if (authorized) {
+          console.log("User is authorized:", role);
+          setIsAuthorized(true);
+          return;
+        }
+      }
+      router.push("/auth/login");
+    };
+
+    if (auth.currentUser) {
+      checkAuth();
+    }
+  }, [auth.currentUser]);
 
   useEffect(() => {
     const fetchVenues = async () => {

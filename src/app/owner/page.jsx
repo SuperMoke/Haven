@@ -13,6 +13,8 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "../../../firebase";
 import Navbar from "./navbar";
+import { useRouter } from "next/navigation";
+import { isAuthenticated } from "../utils/auth";
 
 export default function OwnerPage() {
   const [venues, setVenues] = useState([]);
@@ -20,6 +22,32 @@ export default function OwnerPage() {
   const [approvedBookings, setApprovedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
+
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log("Checking authentication...");
+      const roleMap = {
+        owner: true,
+      };
+      for (const role of Object.keys(roleMap)) {
+        const authorized = await isAuthenticated(role);
+        if (authorized) {
+          console.log("User is authorized:", role);
+          setIsAuthorized(true);
+          return;
+        }
+      }
+      router.push("/auth/login");
+    };
+
+    if (auth.currentUser) {
+      checkAuth();
+    }
+  }, [auth.currentUser]);
 
   useEffect(() => {
     const fetchUserData = async () => {
