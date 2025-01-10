@@ -389,67 +389,86 @@ export default function VenuesPage() {
                       animate={{ opacity: 1 }}
                       className="p-6 bg-white rounded-xl shadow-sm border-2 border-[#fdb040]/20"
                     >
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-2 flex-1">
-                          <h3 className="text-xl font-semibold">
-                            {venue.name}
-                          </h3>
-                          <p className="text-gray-600">{venue.description}</p>
-                          <div className="grid grid-cols-2 gap-4 mt-2">
-                            <div>
-                              <h4 className="font-medium">Amenities:</h4>
-                              <p className="text-sm">
-                                {Array.isArray(venue.amenities)
-                                  ? venue.amenities.join(", ")
-                                  : venue.amenities
-                                      ?.split(",")
-                                      .map((item) => item.trim())
-                                      .join(", ") || ""}
+                      <div className="grid md:grid-cols-2 gap-6">
+                        {/* Left Column - Venue Info */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-2 flex-1">
+                              <h3 className="text-xl font-semibold">
+                                {venue.name}
+                              </h3>
+                              <p className="text-gray-600">
+                                {venue.description}
                               </p>
-                            </div>
-                            <div>
-                              <h4 className="font-medium">Events:</h4>
-                              <p className="text-sm">
-                                {Array.isArray(venue.events)
-                                  ? venue.events.join(", ")
-                                  : venue.events
-                                      ?.split(",")
-                                      .map((item) => item.trim())
-                                      .join(", ") || ""}
-                              </p>
-                            </div>
-                            <div>
-                              <h4 className="font-medium">Price:</h4>
-                              <p className="text-sm">₱{venue.price}</p>
-                            </div>
-                            <div>
-                              <h4 className="font-medium">Images:</h4>
-                              <div className="flex gap-2 mt-1">
-                                {venue.images.map((url, index) => (
-                                  <img
-                                    key={index}
-                                    src={url}
-                                    alt={`${venue.name} ${index + 1}`}
-                                    className="w-12 h-12 object-cover rounded"
-                                  />
-                                ))}
+                              <div className="grid grid-cols-2 gap-4 mt-2">
+                                <div>
+                                  <h4 className="font-medium">Amenities:</h4>
+                                  <p className="text-sm">
+                                    {Array.isArray(venue.amenities)
+                                      ? venue.amenities.join(", ")
+                                      : venue.amenities
+                                          ?.split(",")
+                                          .map((item) => item.trim())
+                                          .join(", ") || ""}
+                                  </p>
+                                </div>
+                                <div>
+                                  <h4 className="font-medium">Events:</h4>
+                                  <p className="text-sm">
+                                    {Array.isArray(venue.events)
+                                      ? venue.events.join(", ")
+                                      : venue.events
+                                          ?.split(",")
+                                          .map((item) => item.trim())
+                                          .join(", ") || ""}
+                                  </p>
+                                </div>
+                                <div>
+                                  <h4 className="font-medium">Price:</h4>
+                                  <p className="text-sm">₱{venue.price}</p>
+                                </div>
+                                <div>
+                                  <h4 className="font-medium">Images:</h4>
+                                  <div className="flex gap-2 mt-1">
+                                    {venue.images.map((url, index) => (
+                                      <img
+                                        key={index}
+                                        src={url}
+                                        alt={`${venue.name} ${index + 1}`}
+                                        className="w-12 h-12 object-cover rounded"
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                onClick={() => handleEditVenue(venue)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => handleDeleteVenue(venue.id)}
+                              >
+                                Delete
+                              </Button>
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => handleEditVenue(venue)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() => handleDeleteVenue(venue.id)}
-                          >
-                            Delete
-                          </Button>
+
+                        {/* Right Column - Map */}
+                        <div className="h-[300px] rounded-lg overflow-hidden">
+                          <iframe
+                            src={venue.mapsUrl}
+                            className="w-full h-full"
+                            style={{ border: 0 }}
+                            allowFullScreen=""
+                            loading="lazy"
+                            referrerPolicy="no-referrer-when-downgrade"
+                          ></iframe>
                         </div>
                       </div>
                     </MotionDiv>

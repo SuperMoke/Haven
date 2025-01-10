@@ -236,37 +236,55 @@ export default function Home() {
           {loading ? (
             <div className="text-center">Loading...</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 gap-8">
               {venues.map((venue, index) => (
                 <MotionDiv
                   key={venue.id}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.03 }}
+                  whileHover={{ scale: 1.02 }}
                   className="bg-white rounded-xl overflow-hidden shadow-lg border border-[#fdb040]/20"
                 >
-                  <div className="h-64 relative">
-                    <Image
-                      src={venue.images[0]}
-                      alt={venue.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-semibold mb-2">{venue.name}</h3>
-                    <p className="text-gray-600 mb-4">{venue.description}</p>
-                    <div className="space-y-2">
-                      <p className="text-sm">
-                        <strong>Events:</strong> {venue.events.join(", ")}
-                      </p>
-                      <p className="text-sm">
-                        <strong>Amenities:</strong> {venue.amenities.join(", ")}
-                      </p>
-                      <p className="text-[#fdb040] font-bold mt-4">
-                        ₱{venue.price}/Event
-                      </p>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {/* Left Column - Venue Details */}
+                    <div className="p-6">
+                      <div className="h-64 relative mb-4">
+                        <Image
+                          src={venue.images[0]}
+                          alt={venue.name}
+                          fill
+                          className="object-cover rounded-lg"
+                        />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">
+                        {venue.name}
+                      </h3>
+                      <p className="text-gray-600 mb-4">{venue.description}</p>
+                      <div className="space-y-2">
+                        <p className="text-sm">
+                          <strong>Events:</strong> {venue.events.join(", ")}
+                        </p>
+                        <p className="text-sm">
+                          <strong>Amenities:</strong>{" "}
+                          {venue.amenities.join(", ")}
+                        </p>
+                        <p className="text-[#fdb040] font-bold mt-4">
+                          ₱{venue.price}/Event
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right Column - Map */}
+                    <div className="h-full min-h-[400px] relative">
+                      <iframe
+                        src={venue.mapsUrl}
+                        className="w-full h-full absolute inset-0"
+                        style={{ border: 0 }}
+                        allowFullScreen=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      ></iframe>
                     </div>
                   </div>
                 </MotionDiv>
