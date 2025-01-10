@@ -14,6 +14,7 @@ import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
@@ -23,13 +24,19 @@ export default function Navbar() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setUser(user);
-
       if (user) {
-        // Fetch additional user data from Firestore
         try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data());
+          const userCollectionRef = collection(db, "users");
+          const userQuery = query(
+            userCollectionRef,
+            where("email", "==", user.email)
+          );
+          const querySnapshot = await getDocs(userQuery);
+
+          if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data();
+            setUserProfile(userData);
+            console.error(userData);
           }
         } catch (error) {
           console.error("Error fetching user data:", error);

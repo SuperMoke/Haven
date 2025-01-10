@@ -44,7 +44,7 @@ export default function LoginPage() {
 
       const roleMap = {
         user: "/user",
-        owner: "owner",
+        owner: "/owner",
         admin: "/admin",
       };
       for (const role of Object.keys(roleMap)) {
