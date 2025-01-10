@@ -36,7 +36,6 @@ export default function Navbar() {
           if (!querySnapshot.empty) {
             const userData = querySnapshot.docs[0].data();
             setUserProfile(userData);
-            console.error(userData);
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
