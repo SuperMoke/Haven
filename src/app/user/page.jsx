@@ -36,6 +36,9 @@ import { Calendar, CalendarPlus, CalendarRange } from "lucide-react";
 import { CreditCard, Wallet, Building2 } from "lucide-react";
 import { isAuthenticated } from "../utils/auth";
 import { useRouter } from "next/navigation";
+import { pdf } from "@react-pdf/renderer";
+import emailjs from "@emailjs/browser";
+import { ReceiptDocument } from "../utils/generateReceipt";
 
 const CALENDARIFIC_API_KEY = "XtujOgEK9g4xmJurzr2RXPPxUq9muk0j";
 const STORAGE_KEY = "holidays_cache";
@@ -67,6 +70,7 @@ export default function UserHomepage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [user, setUser] = useState(null);
+  const [showRatingDialog, setShowRatingDialog] = useState(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -90,6 +94,23 @@ export default function UserHomepage() {
     }
   }, [auth.currentUser]);
 
+  const handleRatingSubmit = async (rating, comment) => {
+    try {
+      const bookingRef = doc(db, "bookings", showRatingDialog.id);
+      await updateDoc(bookingRef, {
+        rating,
+        comment,
+        ratedAt: serverTimestamp(),
+      });
+      setShowRatingDialog(null);
+      // Optionally show success message
+      alert("Thank you for your rating!");
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      alert("Failed to submit rating. Please try again.");
+    }
+  };
+
   const PaymentDialog = ({ booking, venues, onClose, onPaymentComplete }) => {
     const [cardDetails, setCardDetails] = useState({
       number: "",
@@ -109,6 +130,37 @@ export default function UserHomepage() {
           paymentMethod: "card",
           paymentDate: serverTimestamp(),
         });
+
+        const venue = venues.find((v) => v.id === booking.venueId);
+        const receiptDoc = (
+          <ReceiptDocument
+            booking={booking}
+            venue={venue}
+            userProfile={userProfile}
+          />
+        );
+
+        const pdfBlob = await pdf(receiptDoc).toBlob();
+        const pdfBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(pdfBlob);
+          reader.onloadend = () => resolve(reader.result.split(",")[1]);
+        });
+
+        // Send email with receipt
+        await emailjs.send(
+          "service_ht35ae7",
+          "template_vpev5er",
+          {
+            to_email: booking.userEmail,
+            to_name: booking.userName,
+            booking_ref: booking.id,
+            booking_date: booking.startDate.toLocaleDateString(),
+            total_amount: booking.totalAmount.toLocaleString(),
+            pdf_attachment: pdfBase64,
+          },
+          "pAbartLYJWKojQ9K4"
+        );
 
         onPaymentComplete();
       } catch (error) {
@@ -204,6 +256,49 @@ export default function UserHomepage() {
               className="w-full bg-gradient-to-r from-[#fdb040] to-[#fd9040] text-white py-6 rounded-xl font-semibold"
             >
               {isProcessing ? "Processing..." : "Pay Now"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const RatingDialog = ({ booking, onClose, onSubmit }) => {
+    const [rating, setRating] = useState(0);
+    const [comment, setComment] = useState("");
+
+    return (
+      <Dialog open onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Rate Your Experience</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setRating(star)}
+                  className={`text-2xl ${
+                    star <= rating ? "text-yellow-400" : "text-gray-300"
+                  }`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Share your experience..."
+              className="w-full p-2 border rounded-md"
+              rows={4}
+            />
+            <Button
+              onClick={() => onSubmit(rating, comment)}
+              className="w-full bg-gradient-to-r from-[#fdb040] to-[#fd9040]"
+            >
+              Submit Rating
             </Button>
           </div>
         </DialogContent>
@@ -416,12 +511,22 @@ export default function UserHomepage() {
             if (!bookingsByVenue[booking.venueId]) {
               bookingsByVenue[booking.venueId] = [];
             }
-            // Ensure proper date conversion
-            bookingsByVenue[booking.venueId].push({
+
+            // Safe date conversion
+            const processedBooking = {
               ...booking,
-              startDate: booking.startDate.toDate(),
-              endDate: booking.endDate.toDate(),
-            });
+              startDate:
+                booking.startDate?.toDate?.() || new Date(booking.startDate),
+              // Handle optional endDate for single-day bookings
+              endDate: booking.endDate
+                ? booking.endDate?.toDate?.() || new Date(booking.endDate)
+                : booking.startDate?.toDate?.() || new Date(booking.startDate),
+            };
+
+            // Only add if we have valid dates
+            if (processedBooking.startDate) {
+              bookingsByVenue[booking.venueId].push(processedBooking);
+            }
           }
         });
 
@@ -1123,20 +1228,59 @@ export default function UserHomepage() {
                 {completedBookings.map((booking) => (
                   <div
                     key={booking.id}
-                    className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                    className="p-4 bg-gray-50 rounded-lg space-y-3"
                   >
-                    <div>
-                      <p className="font-medium">
-                        {format(new Date(booking.startDate), "MMM dd, yyyy")}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {booking.venueId &&
-                          venues.find((v) => v.id === booking.venueId)?.name}
-                      </p>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium">
+                          {format(new Date(booking.startDate), "MMM dd, yyyy")}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {booking.venueId &&
+                            venues.find((v) => v.id === booking.venueId)?.name}
+                        </p>
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                          <p>
+                            Total Amount: ₱
+                            {booking.totalAmount?.toLocaleString()}
+                          </p>
+                          {booking.photographyPackage && (
+                            <p>
+                              Photography Package: Package{" "}
+                              {booking.photographyPackage.slice(-1)}
+                            </p>
+                          )}
+                          {booking.balloons && (
+                            <p>Balloon Decoration: Included</p>
+                          )}
+                          {booking.menuItems?.length > 0 && (
+                            <p>
+                              Menu Items: {booking.menuItems.length} selected
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {booking.rating ? (
+                        <div className="text-yellow-400 text-lg">
+                          {"★".repeat(booking.rating)}
+                          <span className="text-gray-300">
+                            {"★".repeat(5 - booking.rating)}
+                          </span>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => setShowRatingDialog(booking)}
+                          className="text-sm bg-[#fdb040] hover:bg-[#fd9040]"
+                        >
+                          Rate Experience
+                        </Button>
+                      )}
                     </div>
-                    <span className="px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-                      Completed
-                    </span>
+                    {booking.rating && booking.comment && (
+                      <p className="text-sm italic text-gray-600 mt-2">
+                        "{booking.comment}"
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1157,6 +1301,14 @@ export default function UserHomepage() {
             // Optionally show success message
             alert("Payment completed successfully!");
           }}
+        />
+      )}
+
+      {showRatingDialog && (
+        <RatingDialog
+          booking={showRatingDialog}
+          onClose={() => setShowRatingDialog(null)}
+          onSubmit={handleRatingSubmit}
         />
       )}
     </div>

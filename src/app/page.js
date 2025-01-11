@@ -13,21 +13,21 @@ export default function Home() {
   const services = [
     {
       id: "01",
-      title: "Kids' Birthdays",
+      title: "Christening",
       description:
-        "Bring joy to your child's special day with our fun and vibrant birthday packages, designed to create magical moments for kids of all ages.",
+        "Make your child's baptism a memorable celebration with our carefully curated christening packages, designed to create sacred and joyful moments for the whole family.",
     },
     {
       id: "02",
-      title: "Adult Birthdays",
+      title: "Birthdays",
       description:
-        "Celebrate with elegance and style. Whether it's a milestone birthday or a casual gathering, we offer custom experiences for adults looking to have a great time.",
+        "From intimate gatherings to grand celebrations, we offer customized birthday experiences that cater to all ages, making every birthday truly special and memorable.",
     },
     {
       id: "03",
-      title: "Surprise Parties",
+      title: "Weddings",
       description:
-        "Planning a surprise? Let us handle the details! We craft exciting and personalized surprise birthday parties that will leave your guests in awe.",
+        "Turn your dream wedding into reality with our comprehensive wedding planning services, ensuring every detail is perfect for your most important day.",
     },
   ];
 
@@ -135,8 +135,8 @@ export default function Home() {
               Welcome to HAVEN
             </h1>
             <p className="text-xl mb-8">
-              Your birthday deserves the best! Secure your reservation and let
-              the festivities begin.
+              Your special event deserves the best! Secure your reservation and
+              let the festivities begin.
             </p>
 
             <MotionButton

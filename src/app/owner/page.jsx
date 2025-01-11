@@ -16,6 +16,16 @@ import Navbar from "./navbar";
 import { useRouter } from "next/navigation";
 import { isAuthenticated } from "../utils/auth";
 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+
 export default function OwnerPage() {
   const [venues, setVenues] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
@@ -26,6 +36,7 @@ export default function OwnerPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [user, setUser] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -65,12 +76,48 @@ export default function OwnerPage() {
     fetchUserData();
   }, []);
 
+  const calculateMonthlyStats = (year) => {
+    const monthlyData = Array(12)
+      .fill()
+      .map(() => ({
+        bookings: 0,
+        revenue: 0,
+      }));
+
+    approvedBookings.forEach((booking) => {
+      const bookingDate = new Date(booking.startDate?.seconds * 1000);
+      if (bookingDate.getFullYear() === year) {
+        const month = bookingDate.getMonth();
+        monthlyData[month].bookings += 1;
+        if (booking.status === "finished" || booking.status === "paid") {
+          monthlyData[month].revenue += booking.totalAmount || 0;
+        }
+      }
+    });
+
+    return monthlyData.map((data, index) => ({
+      month: new Date(year, index).toLocaleString("default", {
+        month: "short",
+      }),
+      bookings: data.bookings,
+      revenue: data.revenue,
+    }));
+  };
+
+  const years = Array.from(
+    { length: new Date().getFullYear() - 2023 + 1 },
+    (_, i) => 2023 + i
+  );
+
   useEffect(() => {
     const fetchApprovedBookings = async () => {
+      if (!userData?.venueAssigned) return; // Exit if no venue assigned
+
       try {
         const bookingsRef = collection(db, "bookings");
         const q = query(
           bookingsRef,
+          where("venueId", "==", userData.venueAssigned),
           where("status", "in", [
             "approved",
             "ongoing",
@@ -105,9 +152,11 @@ export default function OwnerPage() {
       setLoading(false);
     };
 
-    fetchApprovedBookings();
+    if (userData) {
+      fetchApprovedBookings();
+    }
     fetchData();
-  }, []);
+  }, [userData]);
 
   const changeBookingStatus = async (bookingId) => {
     try {
@@ -119,11 +168,19 @@ export default function OwnerPage() {
 
       // Refresh the bookings list
       const bookingsRef = collection(db, "bookings");
+      // In changeBookingStatus()
       const q = query(
         bookingsRef,
-        where("status", "==", "approved"),
+        where("status", "in", [
+          "approved",
+          "ongoing",
+          "paid",
+          "ready",
+          "finished",
+        ]),
         orderBy("approvedAt", "desc")
       );
+
       const querySnapshot = await getDocs(q);
       const bookings = querySnapshot.docs.map((doc) => ({
         id: doc.id,
@@ -393,6 +450,35 @@ export default function OwnerPage() {
                     </div>
                   </div>
                 </div>
+                <div className="mt-6 border-t pt-4">
+                  <h4 className="font-medium text-lg mb-3">Customer Review</h4>
+                  {booking.rating ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="text-yellow-400 text-xl">
+                          {"★".repeat(booking.rating)}
+                          <span className="text-gray-300">
+                            {"★".repeat(5 - booking.rating)}
+                          </span>
+                        </div>
+                        <span className="text-sm text-gray-600">
+                          {booking.ratedAt?.seconds
+                            ? new Date(
+                                booking.ratedAt.seconds * 1000
+                              ).toLocaleDateString()
+                            : ""}
+                        </span>
+                      </div>
+                      {booking.comment && (
+                        <blockquote className="pl-4 border-l-4 border-[#fdb040]/30 italic text-gray-600">
+                          "{booking.comment}"
+                        </blockquote>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No review provided</p>
+                  )}
+                </div>
               </MotionDiv>
             ))}
           {approvedBookings.filter((booking) => booking.status === "finished")
@@ -502,7 +588,6 @@ export default function OwnerPage() {
             </MotionDiv>
           </div>
         </section>
-
         {/* Statistics Section */}
         <section className="py-8">
           <div className="container mx-auto px-6 lg:px-20 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -526,6 +611,57 @@ export default function OwnerPage() {
                 {calculateStatistics().completedBookings}
               </div>
             </MotionDiv>
+          </div>
+        </section>
+
+        <section className="py-8">
+          <div className="container mx-auto px-6 lg:px-20">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Monthly Booking Statistics</h2>
+              <div className="flex items-center gap-2">
+                <label htmlFor="yearFilter" className="text-gray-600">
+                  Select Year:
+                </label>
+                <select
+                  id="yearFilter"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="border-2 border-[#fdb040]/20 rounded-lg px-3 py-2 focus:outline-none focus:border-[#fdb040]"
+                >
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border-2 border-[#fdb040]/20">
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart
+                  data={calculateMonthlyStats(selectedYear)}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <XAxis dataKey="month" />
+                  <YAxis yAxisId="left" orientation="left" stroke="#fdb040" />
+                  <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                  <Tooltip />
+                  <Legend />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="bookings"
+                    name="Total Bookings"
+                    fill="#fdb040"
+                  />
+                  <Bar
+                    yAxisId="right"
+                    dataKey="revenue"
+                    name="Revenue (₱)"
+                    fill="#82ca9d"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </section>
 

@@ -18,15 +18,32 @@ import Navbar from "./navbar";
 import Sidebar from "./sidebar";
 import { isAuthenticated } from "../utils/auth";
 import { useRouter } from "next/navigation";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import emailjs from "@emailjs/browser";
+import { format, isBefore, isSameDay, isWithinInterval } from "date-fns";
 
 export default function AdminPage() {
   const [venues, setVenues] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [allBookings, setAllBookings] = useState([]);
   const [activeBookings, setActiveBookings] = useState([]);
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [user, setUser] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const years = Array.from(
+    { length: new Date().getFullYear() - 2023 + 1 },
+    (_, i) => 2023 + i
+  );
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -49,6 +66,26 @@ export default function AdminPage() {
       checkAuth();
     }
   }, [auth.currentUser]);
+
+  // Add this new useEffect for fetching all bookings
+  useEffect(() => {
+    const fetchAllBookings = async () => {
+      try {
+        const bookingsRef = collection(db, "bookings");
+        const q = query(bookingsRef, orderBy("createdAt", "desc"));
+        const querySnapshot = await getDocs(q);
+        const bookings = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setAllBookings(bookings);
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+      }
+    };
+
+    fetchAllBookings();
+  }, []);
 
   useEffect(() => {
     const fetchActiveBookings = async () => {
@@ -74,6 +111,37 @@ export default function AdminPage() {
     fetchActiveBookings();
   }, []);
 
+  const calculateMonthlyStats = (year) => {
+    const monthlyData = Array(12)
+      .fill()
+      .map(() => ({
+        bookings: 0,
+        revenue: 0,
+        pendingBookings: 0,
+      }));
+
+    allBookings.forEach((booking) => {
+      const bookingDate = new Date(booking.startDate?.seconds * 1000);
+      if (bookingDate.getFullYear() === year) {
+        const month = bookingDate.getMonth();
+        if (booking.status === "pending") {
+          monthlyData[month].pendingBookings += 1;
+        }
+        monthlyData[month].bookings += 1;
+        monthlyData[month].revenue += booking.totalAmount || 0;
+      }
+    });
+
+    return monthlyData.map((data, index) => ({
+      month: new Date(year, index).toLocaleString("default", {
+        month: "short",
+      }),
+      bookings: data.bookings,
+      pendingBookings: data.pendingBookings,
+      revenue: data.revenue,
+    }));
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       const venuesSnapshot = await getDocs(collection(db, "venues"));
@@ -95,16 +163,37 @@ export default function AdminPage() {
     if (window.confirm("Are you sure you want to approve this booking?")) {
       try {
         const bookingRef = doc(db, "bookings", bookingId);
+        const booking = activeBookings.find((b) => b.id === bookingId);
+        const venue = venues.find((v) => v.id === booking.venueId);
+
         await updateDoc(bookingRef, {
           status: "approved",
           approvedAt: serverTimestamp(),
         });
 
+        // Send email confirmation
+        await emailjs.send(
+          "service_ht35ae7",
+          "template_rzcby3k",
+          {
+            to_email: booking.userEmail,
+            to_name: booking.userName,
+            booking_id: bookingId,
+            venue_name: venue.name,
+            event_date: format(
+              new Date(booking.startDate.seconds * 1000),
+              "MMMM dd, yyyy"
+            ),
+            total_amount: booking.totalAmount.toLocaleString(),
+          },
+          "pAbartLYJWKojQ9K4"
+        );
+
         setActiveBookings((prev) =>
           prev.filter((booking) => booking.id !== bookingId)
         );
 
-        alert("Booking approved successfully!");
+        alert("Booking approved and confirmation email sent!");
       } catch (error) {
         console.error("Error approving booking:", error);
         alert("Error approving booking. Please try again.");
@@ -262,6 +351,76 @@ export default function AdminPage() {
                   </MotionDiv>
                 </div>
               </section>
+
+              <section className="py-8">
+                <div className="container mx-auto px-6 lg:px-20">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold">
+                      Monthly Booking Statistics
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="yearFilter" className="text-gray-600">
+                        Select Year:
+                      </label>
+                      <select
+                        id="yearFilter"
+                        value={selectedYear}
+                        onChange={(e) =>
+                          setSelectedYear(Number(e.target.value))
+                        }
+                        className="border-2 border-[#fdb040]/20 rounded-lg px-3 py-2 focus:outline-none focus:border-[#fdb040]"
+                      >
+                        {years.map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="bg-white p-6 rounded-xl shadow-sm border-2 border-[#fdb040]/20">
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart
+                        data={calculateMonthlyStats(selectedYear)}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <XAxis dataKey="month" />
+                        <YAxis
+                          yAxisId="left"
+                          orientation="left"
+                          stroke="#fdb040"
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          stroke="#82ca9d"
+                        />
+                        <Tooltip />
+                        <Legend />
+                        <Bar
+                          yAxisId="left"
+                          dataKey="bookings"
+                          name="Total Bookings"
+                          fill="#fdb040"
+                        />
+                        <Bar
+                          yAxisId="left"
+                          dataKey="pendingBookings"
+                          name="Pending Bookings"
+                          fill="#f97316"
+                        />
+                        <Bar
+                          yAxisId="right"
+                          dataKey="revenue"
+                          name="Potential Revenue (₱)"
+                          fill="#82ca9d"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </section>
+
               {ActiveBookingsSection()}
             </div>
           </main>
